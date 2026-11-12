@@ -38,6 +38,38 @@ public class FulfillmentEngine {
             currentCombination.remove(currentCombination.size() - 1);
         }
     }
+    
+    public static FulfillmentPlan selectBestPlan(
+    		List<Warehouse> candidateWarehouses,
+            Order order,
+            List<Constraint> constraints,
+            FulfillmentStrategy strategy) {
+    	List<FulfillmentPlan> allPlans= generatePlans(candidateWarehouses,order);
+    	FulfillmentPlan bestPlan= null;
+    	double bestScore =Double.POSITIVE_INFINITY;
+    	for(FulfillmentPlan plan: allPlans) {
+    		boolean valid=true;
+    		
+    		for(Constraint constraint: constraints)
+    		{
+    			if (!constraint.isSatisfied(plan, order)) {
+                    valid = false;
+                    break;
+                }
+    		}
+    		
+    		if(valid)
+    		{
+    			double score=strategy.calculateScore(plan, order);
+    			
+    			if(score<bestScore) {
+        			bestScore=score;
+        			bestPlan=plan;
+        		}
+    		}
+    	}
+    	return bestPlan;
+    }
 
     public static FulfillmentPlan greedyFallback(List<Warehouse> candidates, Order order) {
         Map<Product, Integer> unfulfilledItems = new HashMap<>();

@@ -27,21 +27,45 @@ public class Main {
 
         System.out.println("Processing Order: " + order.orderId);
 
-        FulfillmentPlan finalPlan = FulfillmentEngine.greedyFallback(allWarehouses, order);
+        List<Constraint> constraints = new ArrayList<>();
+        constraints.add(new InventoryConstraint());
+        FulfillmentStrategy strategy = new BalancedStrategy();
+        FulfillmentPlan finalPlan = FulfillmentEngine.selectBestPlan(allWarehouses, order, constraints, strategy);
+        
+        if (finalPlan == null) {
+            System.out.println("No valid fulfillment plan found.");
+            return;
+        }
+        
+        
         System.out.println("Selected Warehouses: " + finalPlan.assignedWarehouses);
 
         boolean allReserved = true;
         for (OrderItem item : order.items) {
+        	int remaining=item.requiredQuantity;
             for (Warehouse w : finalPlan.assignedWarehouses) {
-                if (w.hasStock(item.product, item.requiredQuantity)) {
-                    boolean success = w.reserveInventory(item.product, item.requiredQuantity);
-                    if (success) {
-                        System.out.println("Reserved " + item.requiredQuantity + " " + item.product.productId + "(s) at " + w.warehouseId);
-                    }
+                int available=w.inventory.getOrDefault(item.product, 0);
+                int quantityToReserve=Math.min(remaining, available);
+                if(quantityToReserve>0) {
+                	boolean success=w.reserveInventory(item.product, quantityToReserve);
+                	if(success)
+                	{
+                		remaining-= quantityToReserve;
+                		
+                		System.out.println("Reserved "+quantityToReserve+" "+item.product.productId+ "(s) at "+w.warehouseId);
+                	}
+                }
+                if(remaining == 0) {
+                	break;
                 }
             }
+            if(remaining>0)
+            {
+            	allReserved =false;
+            	System.out.println("Could not reserve complete quantity of " + item.product.productId);
+            }
         }
-        
+        System.out.println("All items reserved: " + allReserved);
         System.out.println("Engine execution complete.");
     }
 }
